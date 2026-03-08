@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Laser Duel</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Courier New', monospace;
+  touch-action: none;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#ui-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#shop-panel {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: row;
+  gap: 8px;
+  pointer-events: auto;
+  z-index: 20;
+}
+
+.shop-btn {
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #0ff;
+  color: #0ff;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  text-align: center;
+  min-width: 70px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.shop-btn:active {
+  background: rgba(0, 255, 255, 0.2);
+}
+
+.shop-btn.disabled {
+  border-color: #333;
+  color: #333;
+  pointer-events: none;
+}
+
+#hud {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #0ff;
+  text-shadow: 0 0 8px #0ff;
+  z-index: 15;
+  pointer-events: none;
+}
+
+#game-over-screen {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.88);
+  z-index: 30;
+  pointer-events: auto;
+}
+
+#game-over-screen h1 {
+  font-family: 'Courier New', monospace;
+  font-size: 32px;
+  margin-bottom: 12px;
+  text-shadow: 0 0 20px currentColor;
+}
+
+#game-over-screen p {
+  font-family: 'Courier New', monospace;
+  color: #888;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+#restart-btn {
+  background: none;
+  border: 2px solid #0ff;
+  color: #0ff;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  padding: 12px 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-shadow: 0 0 8px #0ff;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+#start-screen {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  z-index: 40;
+  pointer-events: auto;
+}
+
+#start-screen h1 {
+  font-family: 'Courier New', monospace;
+  font-size: 38px;
+  color: #0ff;
+  text-shadow: 0 0 30px #0ff, 0 0 60px #0ff;
+  margin-bottom: 8px;
+}
+
+#start-screen .subtitle {
+  font-family: 'Courier New', monospace;
+  color: #f0f;
+  font-size: 14px;
+  text-shadow: 0 0 10px #f0f;
+  margin-bottom: 40px;
+}
+
+#start-screen .instructions {
+  font-family: 'Courier New', monospace;
+  color: #555;
+  font-size: 12px;
+  text-align: center;
+  line-height: 1.8;
+  margin-bottom: 30px;
+}
+
+#start-btn {
+  background: none;
+  border: 2px solid #0ff;
+  color: #0ff;
+  font-family: 'Courier New', monospace;
+  font-size: 20px;
+  padding: 14px 40px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-shadow: 0 0 8px #0ff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.6); }
+}
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <span id="hud-energy">EN: 0</span>
+  <span id="hud-level">LVL 1</span>
+  <span id="hud-score">SCORE: 0</span>
+</div>
+
+<div id="shop-panel"></div>
+
+<div id="start-screen">
+  <h1>LASER DUEL</h1>
+  <div class="subtitle">// GRID WARFARE //</div>
+  <div class="instructions">
+    DRAG LEFT/RIGHT TO AIM<br>
+    TAP TO FIRE<br>
+    DESTROY THE ENEMY CANNON<br>
+    COLLECT ENERGY &bull; BUY UPGRADES
+  </div>
+  <button id="start-btn">ENGAGE</button>
+</div>
+
+<div id="game-over-screen">
+  <h1 id="game-over-title">GAME OVER</h1>
+  <p id="game-over-info"></p>
+  <button id="restart-btn">RETRY</button>
+</div>
+
+<script>
+// ── Canvas Setup ──
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Constants ──
+const CANNON_RADIUS = 18;
+const BEAM_WIDTH = 6;
+const TERRAIN_COLS = 60;
+const GRID_LINE_ALPHA = 0.06;
+
+// ── Upgrade Definitions ──
+const UPGRADES = [
+  { id: 'width',   name: 'WIDE',   desc: '+Beam Width',  baseCost: 5,  maxLvl: 5 },
+  { id: 'speed',   name: 'RAPID',  desc: '+Fire Rate',   baseCost: 4,  maxLvl: 5 },
+  { id: 'power',   name: 'POWER',  desc: '+Damage',      baseCost: 6,  maxLvl: 5 },
+  { id: 'shield',  name: 'SHIELD', desc: 'Temp Shield',  baseCost: 10, maxLvl: 1 },
+];
+
+// ── Game State ──
+let state;
+
+function initState() {
+  const terrainRows = Math.ceil(H / (H / 40));
+  state = {
+    running: false,
+    gameOver: false,
+    winner: null,
+    score: 0,
+
+    // Player cannon (bottom)
+    player: {
+      x: W / 2,
+      y: H - 40,
+      hp: 100,
+      maxHp: 100,
+      fireTimer: 0,
+      fireCooldown: 28,  // frames between shots
+      beamWidth: BEAM_WIDTH,
+      damage: 8,
+      shielded: false,
+      shieldTimer: 0,
+      upgrades: { width: 0, speed: 0, power: 0, shield: 0 },
+    },
+
+    // CPU cannon (top)
+    cpu: {
+      x: W / 2,
+      y: 40,
+      hp: 100,
+      maxHp: 100,
+      fireTimer: 0,
+      fireCooldown: 35,
+      beamWidth: BEAM_WIDTH,
+      damage: 6,
+      targetX: W / 2,
+      moveTimer: 0,
+      aggression: 0.3,  // increases over time
+    },
+
+    // Terrain: grid of hp values. Each cell can be eroded by beams.
+    terrain: [],
+    terrainCellW: 0,
+    terrainCellH: 0,
+    terrainRows: 0,
+    terrainCols: TERRAIN_COLS,
+
+    // Active beams
+    beams: [],
+
+    // Particles (sparks, explosions)
+    particles: [],
+
+    // Energy pickups
+    pickups: [],
+
+    // Player resources
+    energy: 0,
+
+    // Input
+    inputX: W / 2,
+    dragging: false,
+
+    // Difficulty ramp
+    elapsed: 0,
+
+    // Shop
+    shopOpen: false,
+  };
+
+  // Init terrain grid
+  const cols = state.terrainCols;
+  const cellW = W / cols;
+  const cellH = 10;
+  const rows = Math.floor((H * 0.6) / cellH); // terrain covers middle 60%
+  state.terrainCellW = cellW;
+  state.terrainCellH = cellH;
+  state.terrainRows = rows;
+  state.terrain = [];
+  for (let r = 0; r < rows; r++) {
+    const row = [];
+    for (let c = 0; c < cols; c++) {
+      row.push(100); // full hp
+    }
+    state.terrain.push(row);
+  }
+}
+
+// ── Terrain Helpers ──
+function terrainTopY() {
+  return H * 0.2; // terrain starts 20% from top
+}
+
+function terrainBotY() {
+  return terrainTopY() + state.terrainRows * state.terrainCellH;
+}
+
+function getTerrainCell(worldX, worldY) {
+  const ty = terrainTopY();
+  const r = Math.floor((worldY - ty) / state.terrainCellH);
+  const c = Math.floor(worldX / state.terrainCellW);
+  if (r >= 0 && r < state.terrainRows && c >= 0 && c < state.terrainCols) {
+    return { r, c };
+  }
+  return null;
+}
+
+// ── Beam Logic ──
+function fireBeam(owner) {
+  const isPlayer = owner === 'player';
+  const src = isPlayer ? state.player : state.cpu;
+  const dir = isPlayer ? -1 : 1; // player shoots up, cpu shoots down
+  state.beams.push({
+    x: src.x,
+    y: src.y + dir * CANNON_RADIUS,
+    dir,
+    width: src.beamWidth,
+    damage: src.damage,
+    owner,
+    speed: 5,
+    alive: true,
+    trail: [],
+  });
+}
+
+function updateBeams() {
+  for (const b of state.beams) {
+    if (!b.alive) continue;
+
+    // Move beam
+    for (let step = 0; step < b.speed; step++) {
+      b.y += b.dir;
+      b.trail.push({ x: b.x, y: b.y });
+      if (b.trail.length > 80) b.trail.shift();
+
+      // Check terrain collision
+      const cell = getTerrainCell(b.x, b.y);
+      if (cell) {
+        const hp = state.terrain[cell.r][cell.c];
+        if (hp > 0) {
+          // Erode terrain
+          const erode = b.damage * 0.5;
+          state.terrain[cell.r][cell.c] = Math.max(0, hp - erode);
+
+          // Also erode neighboring cells slightly based on beam width
+          const spread = Math.ceil(b.width / state.terrainCellW);
+          for (let dc = -spread; dc <= spread; dc++) {
+            const nc = cell.c + dc;
+            if (nc >= 0 && nc < state.terrainCols && dc !== 0) {
+              state.terrain[cell.r][nc] = Math.max(0, state.terrain[cell.r][nc] - erode * 0.3);
+            }
+          }
+
+          // Spawn sparks
+          spawnSparks(b.x, b.y, 3, b.owner === 'player' ? '#0ff' : '#f0f');
+
+          b.alive = false;
+          break;
+        }
+      }
+
+      // Check cannon hit
+      if (b.owner === 'player') {
+        const dx = b.x - state.cpu.x;
+        const dy = b.y - state.cpu.y;
+        if (Math.sqrt(dx * dx + dy * dy) < CANNON_RADIUS + b.width / 2) {
+          state.cpu.hp -= b.damage;
+          spawnSparks(b.x, b.y, 8, '#f0f');
+          b.alive = false;
+          state.score += 10;
+          break;
+        }
+      } else {
+        const dx = b.x - state.player.x;
+        const dy = b.y - state.player.y;
+        if (Math.sqrt(dx * dx + dy * dy) < CANNON_RADIUS + b.width / 2) {
+          if (state.player.shielded) {
+            state.player.shielded = false;
+            state.player.shieldTimer = 0;
+            spawnSparks(b.x, b.y, 12, '#0f0');
+          } else {
+            state.player.hp -= b.damage;
+            spawnSparks(b.x, b.y, 8, '#f00');
+          }
+          b.alive = false;
+          break;
+        }
+      }
+
+      // Out of bounds
+      if (b.y < -10 || b.y > H + 10) {
+        b.alive = false;
+        break;
+      }
+    }
+  }
+  state.beams = state.beams.filter(b => b.alive);
+}
+
+// ── Particles ──
+function spawnSparks(x, y, count, color) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 3;
+    state.particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 20 + Math.random() * 20,
+      maxLife: 40,
+      color,
+      size: 1 + Math.random() * 2,
+    });
+  }
+}
+
+function updateParticles() {
+  for (const p of state.particles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.96;
+    p.vy *= 0.96;
+    p.life--;
+  }
+  state.particles = state.particles.filter(p => p.life > 0);
+}
+
+// ── Energy Pickups ──
+function spawnPickup() {
+  if (state.pickups.length >= 5) return;
+  state.pickups.push({
+    x: 20 + Math.random() * (W - 40),
+    y: terrainTopY() + Math.random() * (terrainBotY() - terrainTopY()),
+    value: 1 + Math.floor(Math.random() * 3),
+    pulse: 0,
+    life: 400,
+  });
+}
+
+function updatePickups() {
+  for (const pk of state.pickups) {
+    pk.pulse += 0.08;
+    pk.life--;
+  }
+  state.pickups = state.pickups.filter(p => p.life > 0);
+
+  // Check beam-pickup collision (player beams collect pickups)
+  for (const b of state.beams) {
+    if (b.owner !== 'player') continue;
+    for (let i = state.pickups.length - 1; i >= 0; i--) {
+      const pk = state.pickups[i];
+      const dx = b.x - pk.x;
+      const dy = b.y - pk.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 15) {
+        state.energy += pk.value;
+        spawnSparks(pk.x, pk.y, 6, '#ff0');
+        state.pickups.splice(i, 1);
+      }
+    }
+  }
+}
+
+// ── CPU AI ──
+function updateCPU() {
+  const cpu = state.cpu;
+
+  // Ramp difficulty
+  state.elapsed++;
+  if (state.elapsed % 600 === 0) {
+    cpu.aggression = Math.min(1, cpu.aggression + 0.05);
+    cpu.fireCooldown = Math.max(15, cpu.fireCooldown - 1);
+    cpu.damage = Math.min(15, cpu.damage + 0.5);
+  }
+
+  // Movement: track player with some lag and randomness
+  cpu.moveTimer--;
+  if (cpu.moveTimer <= 0) {
+    cpu.moveTimer = 30 + Math.random() * 40;
+    // Mix of tracking player and random movement
+    const trackWeight = 0.5 + cpu.aggression * 0.4;
+    cpu.targetX = state.player.x * trackWeight + (20 + Math.random() * (W - 40)) * (1 - trackWeight);
+  }
+  const cpuSpeed = 1.5 + cpu.aggression;
+  if (Math.abs(cpu.x - cpu.targetX) > cpuSpeed) {
+    cpu.x += (cpu.targetX > cpu.x ? 1 : -1) * cpuSpeed;
+  }
+  cpu.x = Math.max(CANNON_RADIUS, Math.min(W - CANNON_RADIUS, cpu.x));
+
+  // Fire
+  cpu.fireTimer--;
+  if (cpu.fireTimer <= 0) {
+    fireBeam('cpu');
+    cpu.fireTimer = cpu.fireCooldown;
+  }
+}
+
+// ── Player ──
+function updatePlayer() {
+  const p = state.player;
+
+  // Move towards input
+  if (state.dragging) {
+    const speed = 6;
+    const dx = state.inputX - p.x;
+    if (Math.abs(dx) > speed) {
+      p.x += dx > 0 ? speed : -speed;
+    } else {
+      p.x = state.inputX;
+    }
+  }
+  p.x = Math.max(CANNON_RADIUS, Math.min(W - CANNON_RADIUS, p.x));
+
+  // Auto-fire
+  p.fireTimer--;
+  if (p.fireTimer <= 0) {
+    fireBeam('player');
+    p.fireTimer = p.fireCooldown;
+    state.score += 1;
+  }
+
+  // Shield timer
+  if (p.shielded) {
+    p.shieldTimer--;
+    if (p.shieldTimer <= 0) p.shielded = false;
+  }
+}
+
+// ── Shop ──
+function buildShop() {
+  const panel = document.getElementById('shop-panel');
+  panel.innerHTML = '';
+  for (const up of UPGRADES) {
+    const lvl = state.player.upgrades[up.id];
+    const maxed = lvl >= up.maxLvl;
+    const cost = up.baseCost + lvl * 3;
+    const canAfford = state.energy >= cost;
+    const btn = document.createElement('button');
+    btn.className = 'shop-btn' + (!canAfford || maxed ? ' disabled' : '');
+    btn.innerHTML = `${up.name}<br><span style="font-size:9px">${maxed ? 'MAX' : cost + ' EN'}</span>`;
+    if (!maxed && canAfford) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        buyUpgrade(up.id, cost);
+      });
+      btn.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      });
+    }
+    panel.appendChild(btn);
+  }
+  panel.style.display = 'flex';
+}
+
+function hideShop() {
+  document.getElementById('shop-panel').style.display = 'none';
+  state.shopOpen = false;
+}
+
+function buyUpgrade(id, cost) {
+  if (state.energy < cost) return;
+  state.energy -= cost;
+  state.player.upgrades[id]++;
+  const p = state.player;
+  switch (id) {
+    case 'width':
+      p.beamWidth = BEAM_WIDTH + p.upgrades.width * 2;
+      break;
+    case 'speed':
+      p.fireCooldown = Math.max(8, 28 - p.upgrades.speed * 4);
+      break;
+    case 'power':
+      p.damage = 8 + p.upgrades.power * 3;
+      break;
+    case 'shield':
+      p.shielded = true;
+      p.shieldTimer = 600; // 10 seconds
+      break;
+  }
+  buildShop(); // refresh
+}
+
+// ── Drawing ──
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background grid
+  ctx.strokeStyle = `rgba(0, 255, 255, ${GRID_LINE_ALPHA})`;
+  ctx.lineWidth = 1;
+  const gridSize = 30;
+  for (let x = 0; x < W; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Terrain
+  drawTerrain();
+
+  // Pickups
+  for (const pk of state.pickups) {
+    const s = 6 + Math.sin(pk.pulse) * 2;
+    ctx.save();
+    ctx.translate(pk.x, pk.y);
+    ctx.rotate(pk.pulse * 0.5);
+    ctx.shadowColor = '#ff0';
+    ctx.shadowBlur = 10;
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    // Diamond shape
+    ctx.moveTo(0, -s); ctx.lineTo(s, 0); ctx.lineTo(0, s); ctx.lineTo(-s, 0); ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Beams
+  for (const b of state.beams) {
+    const color = b.owner === 'player' ? '#0ff' : '#f0f';
+    // Trail
+    ctx.strokeStyle = color;
+    ctx.lineWidth = b.width;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 15;
+    ctx.globalAlpha = 0.6;
+    if (b.trail.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(b.trail[0].x, b.trail[0].y);
+      for (let i = 1; i < b.trail.length; i++) {
+        ctx.lineTo(b.trail[i].x, b.trail[i].y);
+      }
+      ctx.stroke();
+    }
+    // Head
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.width / 2 + 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
+  // Cannons
+  drawCannon(state.player.x, state.player.y, '#0ff', state.player.hp, state.player.maxHp, state.player.shielded);
+  drawCannon(state.cpu.x, state.cpu.y, '#f0f', state.cpu.hp, state.cpu.maxHp, false);
+
+  // Particles
+  for (const p of state.particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+function drawTerrain() {
+  const ty = terrainTopY();
+  for (let r = 0; r < state.terrainRows; r++) {
+    for (let c = 0; c < state.terrainCols; c++) {
+      const hp = state.terrain[r][c];
+      if (hp <= 0) continue;
+      const alpha = (hp / 100) * 0.35;
+      // Color gradient: top half is cpu color (magenta), bottom half is player color (cyan)
+      const midRow = state.terrainRows / 2;
+      let color;
+      if (r < midRow) {
+        const t = r / midRow;
+        const rr = Math.round(100 + 155 * (1 - t));
+        const gg = 0;
+        const bb = Math.round(100 + 155 * (1 - t));
+        color = `rgba(${rr}, ${gg}, ${bb}, ${alpha})`;
+      } else {
+        const t = (r - midRow) / midRow;
+        const rr = 0;
+        const gg = Math.round(100 + 155 * t);
+        const bb = Math.round(100 + 155 * t);
+        color = `rgba(${rr}, ${gg}, ${bb}, ${alpha})`;
+      }
+      ctx.fillStyle = color;
+      ctx.fillRect(
+        c * state.terrainCellW,
+        ty + r * state.terrainCellH,
+        state.terrainCellW + 0.5,
+        state.terrainCellH + 0.5
+      );
+    }
+  }
+}
+
+function drawCannon(x, y, color, hp, maxHp, shielded) {
+  ctx.save();
+  // Glow
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 20;
+  // Outer ring
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.arc(x, y, CANNON_RADIUS, 0, Math.PI * 2);
+  ctx.stroke();
+  // Inner fill
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.2;
+  ctx.beginPath();
+  ctx.arc(x, y, CANNON_RADIUS - 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  // Core
+  ctx.fillStyle = '#fff';
+  ctx.shadowBlur = 30;
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // HP bar
+  ctx.shadowBlur = 0;
+  const barW = CANNON_RADIUS * 2;
+  const barH = 3;
+  const barY = y > H / 2 ? y + CANNON_RADIUS + 6 : y - CANNON_RADIUS - 9;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x - barW / 2, barY, barW, barH);
+  const hpRatio = Math.max(0, hp / maxHp);
+  const hpColor = hpRatio > 0.5 ? color : hpRatio > 0.25 ? '#ff0' : '#f00';
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(x - barW / 2, barY, barW * hpRatio, barH);
+  // Shield
+  if (shielded) {
+    ctx.strokeStyle = '#0f0';
+    ctx.shadowColor = '#0f0';
+    ctx.shadowBlur = 15;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, CANNON_RADIUS + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+// ── HUD ──
+function updateHUD() {
+  document.getElementById('hud-energy').textContent = `EN: ${state.energy}`;
+  const totalLvl = 1 + Object.values(state.player.upgrades).reduce((a, b) => a + b, 0);
+  document.getElementById('hud-level').textContent = `LVL ${totalLvl}`;
+  document.getElementById('hud-score').textContent = `SCORE: ${state.score}`;
+}
+
+// ── Game Over ──
+function checkGameOver() {
+  if (state.cpu.hp <= 0) {
+    endGame('player');
+  } else if (state.player.hp <= 0) {
+    endGame('cpu');
+  }
+}
+
+function endGame(winner) {
+  state.gameOver = true;
+  state.running = false;
+  state.winner = winner;
+  const screen = document.getElementById('game-over-screen');
+  const title = document.getElementById('game-over-title');
+  const info = document.getElementById('game-over-info');
+  if (winner === 'player') {
+    title.textContent = 'VICTORY';
+    title.style.color = '#0ff';
+    info.textContent = `Score: ${state.score} | Energy: ${state.energy}`;
+  } else {
+    title.textContent = 'DEFEATED';
+    title.style.color = '#f00';
+    info.textContent = `Score: ${state.score}`;
+  }
+  screen.style.display = 'flex';
+  hideShop();
+}
+
+// ── Main Loop ──
+function gameLoop() {
+  if (!state.running) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+
+  updatePlayer();
+  updateCPU();
+  updateBeams();
+  updateParticles();
+  updatePickups();
+  checkGameOver();
+
+  // Spawn pickups periodically
+  if (Math.random() < 0.008) spawnPickup();
+
+  // Show/update shop when player has energy
+  if (state.energy > 0 && !state.shopOpen) {
+    state.shopOpen = true;
+    buildShop();
+  } else if (state.shopOpen && state.energy > 0) {
+    // Refresh affordability
+    if (state.elapsed % 30 === 0) buildShop();
+  } else if (state.energy <= 0 && state.shopOpen) {
+    hideShop();
+  }
+
+  draw();
+  updateHUD();
+  requestAnimationFrame(gameLoop);
+}
+
+// ── Input Handling ──
+function onPointerDown(x, y) {
+  state.dragging = true;
+  state.inputX = x;
+}
+
+function onPointerMove(x, y) {
+  if (state.dragging) {
+    state.inputX = x;
+  }
+}
+
+function onPointerUp() {
+  state.dragging = false;
+}
+
+// Touch
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  onPointerDown(t.clientX, t.clientY);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const t = e.touches[0];
+  onPointerMove(t.clientX, t.clientY);
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  onPointerUp();
+}, { passive: false });
+
+// Mouse fallback
+canvas.addEventListener('mousedown', (e) => onPointerDown(e.clientX, e.clientY));
+canvas.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
+canvas.addEventListener('mouseup', () => onPointerUp());
+
+// ── Start / Restart ──
+document.getElementById('start-btn').addEventListener('click', () => {
+  document.getElementById('start-screen').style.display = 'none';
+  initState();
+  state.running = true;
+  state.dragging = true;
+  state.inputX = W / 2;
+});
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+  document.getElementById('game-over-screen').style.display = 'none';
+  initState();
+  state.running = true;
+  state.dragging = true;
+  state.inputX = W / 2;
+});
+
+// ── Init ──
+initState();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
