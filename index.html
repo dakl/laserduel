@@ -254,20 +254,20 @@ function initState() {
     winner: null,
     score: 0,
 
-    // Player cannon (bottom)
-    player: {
-      x: W / 2,
-      y: H - 40,
-      hp: 100,
-      maxHp: 100,
-      fireTimer: 0,
-      fireCooldown: 28,  // frames between shots
-      beamWidth: BEAM_WIDTH,
-      damage: 8,
-      shielded: false,
-      shieldTimer: 0,
-      upgrades: { width: 0, speed: 0, power: 0, shield: 0 },
-    },
+// Player cannon (bottom)
+player: {
+  x: W / 2,
+  y: H - 40,
+  hp: 100,
+  maxHp: 100,
+  fireTimer: 0,
+  fireCooldown: 28,  // frames between shots
+  beamWidth: BEAM_WIDTH,
+  damage: 12,
+  shielded: false,
+  shieldTimer: 0,
+  upgrades: { width: 0, speed: 0, power: 0, shield: 0 },
+},
 
     // CPU cannon (top)
     cpu: {
@@ -278,7 +278,7 @@ function initState() {
       fireTimer: 0,
       fireCooldown: 35,
       beamWidth: BEAM_WIDTH,
-      damage: 6,
+      damage: 8,
       targetX: W / 2,
       moveTimer: 0,
       aggression: 0.3,  // increases over time
@@ -510,13 +510,13 @@ function updatePickups() {
 function updateCPU() {
   const cpu = state.cpu;
 
-  // Ramp difficulty
-  state.elapsed++;
-  if (state.elapsed % 600 === 0) {
-    cpu.aggression = Math.min(1, cpu.aggression + 0.05);
-    cpu.fireCooldown = Math.max(15, cpu.fireCooldown - 1);
-    cpu.damage = Math.min(15, cpu.damage + 0.5);
-  }
+        // Ramp difficulty
+        state.elapsed++;
+        if (state.elapsed % 600 === 0) {
+          cpu.aggression = Math.min(1, cpu.aggression + 0.05);
+          cpu.fireCooldown = Math.max(15, cpu.fireCooldown - 1);
+          cpu.damage = Math.min(20, cpu.damage + 0.75);
+        }
 
   // Movement: track player with some lag and randomness
   cpu.moveTimer--;
@@ -615,7 +615,7 @@ function buyUpgrade(id, cost) {
       p.fireCooldown = Math.max(8, 28 - p.upgrades.speed * 4);
       break;
     case 'power':
-      p.damage = 8 + p.upgrades.power * 3;
+      p.damage = 12 + p.upgrades.power * 4;
       break;
     case 'shield':
       p.shielded = true;
